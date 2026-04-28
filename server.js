@@ -1,0 +1,159 @@
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DATA_DIR = path.join(__dirname, 'data');
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+
+const cache = {};
+
+function hoje() {
+  return new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+    .split('/').reverse().join('-');
+}
+
+function dataFile(filial) {
+  return path.join(DATA_DIR, `${filial}.json`);
+}
+
+function histFile(filial) {
+  return path.join(DATA_DIR, `${filial}_historico.csv`);
+}
+
+function lerDados(filial) {
+  if (!cache[filial]) {
+    const file = dataFile(filial);
+    if (!fs.existsSync(file)) {
+      cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0 };
+      fs.writeFileSync(file, JSON.stringify(cache[filial]));
+    } else {
+      cache[filial] = JSON.parse(fs.readFileSync(file, 'utf8'));
+    }
+  }
+
+  if (cache[filial].data !== hoje()) {
+    cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0 };
+    fs.writeFileSync(dataFile(filial), JSON.stringify(cache[filial]));
+  }
+
+  return cache[filial];
+}
+
+function salvarDados(filial, dados) {
+  cache[filial] = dados;
+  fs.writeFileSync(dataFile(filial), JSON.stringify(dados));
+}
+
+function registrarHistorico(filial, tipo, numero) {
+  const file = histFile(filial);
+  const agora = new Date().toISOString();
+  const linha = `${agora},${tipo},${numero}\n`;
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, 'timestamp,tipo,numero\n' + linha);
+  } else {
+    fs.appendFileSync(file, linha);
+  }
+}
+
+app.get('/dados', (req, res) => {
+  const filial = req.query.filial || 'default';
+  res.json(lerDados(filial));
+});
+
+app.post('/chamar', (req, res) => {
+  const filial = req.query.filial || 'default';
+  const { tipo } = req.body;
+  const d = lerDados(filial);
+
+  if (tipo === 'P') {
+    d.senha_p++;
+    d.ultima_geral = 'P' + String(d.senha_p).padStart(3, '0');
+  } else {
+    d.senha_n++;
+    d.ultima_geral = 'N' + String(d.senha_n).padStart(3, '0');
+  }
+
+  salvarDados(filial, d);
+  registrarHistorico(filial, tipo, tipo === 'P' ? d.senha_p : d.senha_n);
+  res.json({ ok: true, dados: d });
+});
+
+app.post('/voltar', (req, res) => {
+  const filial = req.query.filial || 'default';
+  const { tipo } = req.body;
+  const d = lerDados(filial);
+
+  if (tipo === 'P' && d.senha_p > 0) d.senha_p--;
+  if (tipo === 'N' && d.senha_n > 0) d.senha_n--;
+
+  salvarDados(filial, d);
+  res.json({ ok: true, dados: d });
+});
+
+app.post('/resetar', (req, res) => {
+  const filial = req.query.filial || 'default';
+  const d = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0 };
+  salvarDados(filial, d);
+  res.json({ ok: true });
+});
+
+app.post('/orcamentos', (req, res) => {
+  const filial = req.query.filial || 'default';
+  const { quantidade } = req.body;
+  const d = lerDados(filial);
+  d.orcamentos = parseInt(quantidade) || 0;
+  salvarDados(filial, d);
+  res.json({ ok: true });
+});
+
+app.get('/historico', (req, res) => {
+  const filial = req.query.filial || 'default';
+  const file = histFile(filial);
+  if (!fs.existsSync(file)) return res.json([]);
+
+  const hojeStr = hoje();
+  const linhas = fs.readFileSync(file, 'utf8').split('\n')
+    .filter(l => {
+      const ts = l.split(',')[0];
+      if (!ts || ts === 'timestamp') return false;
+      const dataLinha = new Date(ts).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+        .split('/').reverse().join('-');
+      return dataLinha === hojeStr;
+    })
+    .map(l => {
+      const parts = l.split(',');
+      return { ts: parts[0], tipo: parts[1], numero: parseInt(parts[2]) };
+    });
+
+  res.json(linhas);
+});
+
+app.get('/resumo', (req, res) => {
+  const resumo = {};
+  if (fs.existsSync(DATA_DIR)) {
+    fs.readdirSync(DATA_DIR)
+      .filter(f => f.endsWith('.json'))
+      .forEach(f => {
+        const nome = f.replace('.json', '');
+        resumo[nome] = lerDados(nome);
+      });
+  }
+  res.json(resumo);
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('='.repeat(50));
+  console.log('  Chamador de Senhas - Santa Apolônia');
+  console.log('='.repeat(50));
+  console.log(`  Servidor:  http://localhost:${PORT}`);
+  console.log(`  Painel TV: http://localhost:${PORT}/painel.html?filial=loja01`);
+  console.log(`  Operador:  http://localhost:${PORT}/operador.html?filial=loja01`);
+  console.log(`  Dashboard: http://localhost:${PORT}/dashboard.html`);
+  console.log('='.repeat(50));
+});

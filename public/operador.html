@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operador - Chamador de Senhas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary:       #0d2d4e;
+      --primary-dark:  #0d2d4e;
+      --primary-light: #1a6fa8;
+      --preferencial:  #dc2626;
+      --normal:        #16a34a;
+      --success:       #0e9f6e;
+      --danger:        #e02424;
+      --gray-50:       #f9fafb;
+      --gray-100:      #f3f4f6;
+      --gray-200:      #e5e7eb;
+      --gray-500:      #6b7280;
+      --gray-700:      #374151;
+      --gray-900:      #111827;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 3px solid var(--primary-light);
+    }
+
+    .header img { height: 40px; object-fit: contain; }
+
+    .header-info h1 { font-size: 17px; font-weight: 700; }
+    .header-info p  { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+    .content {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Card atual */
+    .status-bar {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .status-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .status-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-valor {
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .status-valor.p { color: var(--preferencial); }
+    .status-valor.n { color: var(--normal); }
+    .status-valor.total { color: var(--primary); }
+
+    /* Botões principais */
+    .botoes-principais {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .btn-chamar {
+      border: none;
+      border-radius: 14px;
+      padding: 28px 20px;
+      cursor: pointer;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      transition: transform 0.1s, opacity 0.1s;
+      font-family: inherit;
+    }
+
+    .btn-chamar:active { transform: scale(0.97); opacity: 0.9; }
+
+    .btn-chamar.preferencial { background: var(--preferencial); }
+    .btn-chamar.normal       { background: var(--normal); }
+
+    .btn-chamar .icone { font-size: 36px; }
+    .btn-chamar .texto { font-size: 18px; font-weight: 700; }
+    .btn-chamar .sub   { font-size: 13px; opacity: 0.85; }
+
+    /* Ações secundárias */
+    .acoes {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+
+    .acoes-titulo {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .acoes-grid {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-acao {
+      flex: 1;
+      min-width: 140px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 2px solid var(--gray-200);
+      background: white;
+      color: var(--gray-700);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+
+    .btn-acao:hover { background: var(--gray-100); }
+    .btn-acao.danger { border-color: var(--danger); color: var(--danger); }
+    .btn-acao.danger:hover { background: #fee2e2; }
+
+    /* Última chamada */
+    .ultima-chamada {
+      background: var(--primary);
+      color: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      text-align: center;
+    }
+
+    .ultima-chamada .label {
+      font-size: 12px;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .ultima-chamada .senha {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 2px;
+    }
+
+    .ultima-chamada .senha.vazio { opacity: 0.3; font-size: 28px; }
+
+    /* Links */
+    .links {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .link-btn {
+      color: var(--primary-light);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+      background: white;
+    }
+
+    /* Seletor de filial */
+    .seletor {
+      position: fixed;
+      inset: 0;
+      background: #0d2d4e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .seletor img { height: 56px; margin-bottom: 10px; }
+    .seletor h2 { font-size: 20px; color: white; }
+    .seletor p  { font-size: 14px; color: rgba(255,255,255,0.6); text-align: center; }
+
+    .seletor input {
+      font-size: 18px;
+      padding: 14px 20px;
+      border-radius: 10px;
+      border: 2px solid #1a6fa8;
+      background: #081e35;
+      color: white;
+      text-align: center;
+      width: 100%;
+      max-width: 280px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .seletor button {
+      font-size: 17px;
+      padding: 14px 40px;
+      border-radius: 10px;
+      border: none;
+      background: #1a6fa8;
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+      font-family: inherit;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Feedback toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--primary);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      transition: transform 0.3s ease;
+      z-index: 300;
+      white-space: nowrap;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- Seletor de filial -->
+  <div class="seletor" id="seletor">
+    <img src="logo.png" alt="Santa Apolônia">
+    <h2>Selecionar Loja</h2>
+    <p>Digite o código desta loja para começar</p>
+    <input type="text" id="input-filial" placeholder="Ex: loja01" autocomplete="off">
+    <button onclick="confirmarFilial()">Confirmar</button>
+  </div>
+
+  <div class="header">
+    <img src="logo.png" alt="Santa Apolônia">
+    <div class="header-info">
+      <h1>Chamador de Senhas</h1>
+      <p id="nome-filial">—</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="status-bar">
+      <div class="status-item">
+        <span class="status-label">Preferencial</span>
+        <span class="status-valor p" id="count-p">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Normal</span>
+        <span class="status-valor n" id="count-n">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Total Hoje</span>
+        <span class="status-valor total" id="count-total">0</span>
+      </div>
+    </div>
+
+    <div class="ultima-chamada">
+      <div class="label">Última senha chamada</div>
+      <div class="senha vazio" id="ultima-senha">—</div>
+    </div>
+
+    <div class="botoes-principais">
+      <button class="btn-chamar preferencial" onclick="chamar('P')">
+        <span class="icone">⭐</span>
+        <span class="texto">Chamar Preferencial</span>
+        <span class="sub" id="prox-p">Próxima: P-001</span>
+      </button>
+      <button class="btn-chamar normal" onclick="chamar('N')">
+        <span class="icone">🎫</span>
+        <span class="texto">Chamar Normal</span>
+        <span class="sub" id="prox-n">Próxima: N-001</span>
+      </button>
+    </div>
+
+    <div class="acoes">
+      <div class="acoes-titulo">Correções</div>
+      <div class="acoes-grid">
+        <button class="btn-acao" onclick="voltar('P')">↩ Desfazer Preferencial</button>
+        <button class="btn-acao" onclick="voltar('N')">↩ Desfazer Normal</button>
+        <button class="btn-acao danger" onclick="confirmarReset()">⚠ Resetar Dia</button>
+      </div>
+    </div>
+
+    <div class="links">
+      <a class="link-btn" href="painel.html" target="_blank">Ver Painel TV</a>
+      <a class="link-btn" href="dashboard.html" target="_blank">Dashboard</a>
+      <a class="link-btn" href="#" onclick="trocarFilial(); return false;">Trocar Loja</a>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let filial = new URLSearchParams(location.search).get('filial') || localStorage.getItem('filial_op') || '';
+    let dados = { senha_p: 0, senha_n: 0, ultima_geral: '' };
+
+    function confirmarFilial() {
+      const val = document.getElementById('input-filial').value.trim();
+      if (!val) return;
+      filial = val;
+      localStorage.setItem('filial_op', filial);
+      document.getElementById('seletor').classList.add('hidden');
+      iniciar();
+    }
+
+    document.getElementById('input-filial').addEventListener('keydown', e => {
+      if (e.key === 'Enter') confirmarFilial();
+    });
+
+    function trocarFilial() {
+      localStorage.removeItem('filial_op');
+      filial = '';
+      document.getElementById('input-filial').value = '';
+      document.getElementById('seletor').classList.remove('hidden');
+    }
+
+    function fmt(n) { return String(n).padStart(3, '0'); }
+
+    function mostrarToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    function atualizarUI(d) {
+      dados = d;
+      document.getElementById('count-p').textContent = d.senha_p;
+      document.getElementById('count-n').textContent = d.senha_n;
+      document.getElementById('count-total').textContent = d.senha_p + d.senha_n;
+
+      const el = document.getElementById('ultima-senha');
+      if (d.ultima_geral) {
+        el.textContent = d.ultima_geral;
+        el.classList.remove('vazio');
+      } else {
+        el.textContent = '—';
+        el.classList.add('vazio');
+      }
+
+      document.getElementById('prox-p').textContent = 'Próxima: P-' + fmt(d.senha_p + 1);
+      document.getElementById('prox-n').textContent = 'Próxima: N-' + fmt(d.senha_n + 1);
+    }
+
+    async function chamar(tipo) {
+      try {
+        const res = await fetch(`/chamar?filial=${filial}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo })
+        });
+        const json = await res.json();
+        if (json.ok) {
+          atualizarUI(json.dados);
+          const label = tipo === 'P' ? 'Preferencial' : 'Normal';
+          mostrarToast(`Chamou ${json.dados.ultima_geral} (${label})`);
+        }
+      } catch (e) {
+        mostrarToast('Erro ao chamar senha');
+      }
+    }
+
+    async function voltar(tipo) {
+      try {
+        const res = await fetch(`/voltar?filial=${filial}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo })
+        });
+        const json = await res.json();
+        if (json.ok) {
+          atualizarUI(json.dados);
+          mostrarToast('Senha desfeita');
+        }
+      } catch (e) {
+        mostrarToast('Erro ao desfazer');
+      }
+    }
+
+    async function confirmarReset() {
+      if (!confirm('Resetar contadores do dia? Esta ação não pode ser desfeita.')) return;
+      try {
+        await fetch(`/resetar?filial=${filial}`, { method: 'POST' });
+        atualizarUI({ senha_p: 0, senha_n: 0, ultima_geral: '' });
+        mostrarToast('Contadores resetados');
+      } catch (e) {
+        mostrarToast('Erro ao resetar');
+      }
+    }
+
+    async function carregar() {
+      if (!filial) return;
+      try {
+        const res = await fetch(`/dados?filial=${filial}`);
+        const d = await res.json();
+        atualizarUI(d);
+      } catch (e) {}
+    }
+
+    function iniciar() {
+      document.getElementById('nome-filial').textContent = filial.toUpperCase();
+
+      const painelLink = document.querySelector('a[href="painel.html"]');
+      if (painelLink) painelLink.href = `painel.html?filial=${filial}`;
+
+      carregar();
+      setInterval(carregar, 5000);
+    }
+
+    if (filial) {
+      document.getElementById('seletor').classList.add('hidden');
+      iniciar();
+    }
+  </script>
+</body>
+</html>
