@@ -363,20 +363,26 @@
       try { getAudioCtx(); } catch(e) {}
     }
 
-    function falar(texto) {
+    function playSequencia(arquivos) {
+      let i = 0;
+      function proxima() {
+        if (i >= arquivos.length) return;
+        const audio = new Audio(arquivos[i]);
+        audio.onended = proxima;
+        audio.onerror  = proxima;
+        audio.play().catch(proxima);
+        i++;
+      }
+      proxima();
+    }
+
+    function falar(tipo, numero) {
       if (!somAtivo) return;
       tocarChime();
-      try {
-        if (window.speechSynthesis) {
-          setTimeout(() => {
-            speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(texto);
-            u.lang = 'pt-BR';
-            u.rate = 0.9;
-            speechSynthesis.speak(u);
-          }, 800);
-        }
-      } catch(e) {}
+      const num = String(numero).padStart(3, '0');
+      const prefix = tipo === 'P' ? '/audio/preferencial.m4a' : '/audio/normal.m4a';
+      const numFile = `/audio/num_${num}.m4a`;
+      setTimeout(() => playSequencia([prefix, numFile]), 900);
     }
 
     function fmt(n) {
@@ -418,10 +424,10 @@
 
           if (ultimaGeral.startsWith('P')) {
             flash('card-p', 'flash');
-            falar('Senha vermelha preferencial ' + fmt(d.senha_p));
+            falar('P', d.senha_p);
           } else {
             flash('card-n', 'flash');
-            falar('Senha verde normal ' + fmt(d.senha_n));
+            falar('N', d.senha_n);
           }
         }
       } catch (e) {
