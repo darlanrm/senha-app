@@ -14,9 +14,12 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 const cache = {};
 
-// Redis para persistência entre deploys (opcional — funciona sem se variáveis não configuradas)
-const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+// Remove aspas que podem vir do formato .env copiado do Upstash
+const redisUrl   = (process.env.UPSTASH_REDIS_REST_URL   || '').replace(/^["'\s]+|["'\s]+$/g, '');
+const redisToken = (process.env.UPSTASH_REDIS_REST_TOKEN || '').replace(/^["'\s]+|["'\s]+$/g, '');
+
+const redis = (redisUrl && redisToken)
+  ? new Redis({ url: redisUrl, token: redisToken })
   : null;
 
 function hoje() {
