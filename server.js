@@ -14,9 +14,9 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 const cache = {};
 
-// Remove aspas que podem vir do formato .env copiado do Upstash
-const redisUrl   = (process.env.UPSTASH_REDIS_REST_URL   || '').replace(/^["'\s]+|["'\s]+$/g, '');
-const redisToken = (process.env.UPSTASH_REDIS_REST_TOKEN || '').replace(/^["'\s]+|["'\s]+$/g, '');
+// Remove aspas e espaços/quebras de linha que vêm do formato .env copiado do Upstash
+const redisUrl   = (process.env.UPSTASH_REDIS_REST_URL   || '').replace(/["'\s]/g, '');
+const redisToken = (process.env.UPSTASH_REDIS_REST_TOKEN || '').replace(/["'\s]/g, '');
 
 const redis = (redisUrl && redisToken)
   ? new Redis({ url: redisUrl, token: redisToken })
