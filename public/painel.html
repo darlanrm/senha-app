@@ -364,15 +364,16 @@
       try { getAudioCtx(); } catch(e) {}
     }
 
-    let audioVoz = null;
+    const audioCache = {};
 
-    function getAudioVoz() {
-      if (!audioVoz) {
-        audioVoz = document.createElement('audio');
-        audioVoz.preload = 'none';
-        document.body.appendChild(audioVoz);
-      }
-      return audioVoz;
+    function tocarBuffer(buffer) {
+      try {
+        const ctx = getAudioCtx();
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(ctx.destination);
+        src.start(0);
+      } catch(e) {}
     }
 
     function falar(tipo, numero) {
@@ -381,13 +382,15 @@
       const num = String(numero).padStart(3, '0');
       const arquivo = `/audio2/${tipo === 'P' ? 'p' : 'n'}_${num}.m4a`;
       setTimeout(() => {
-        try {
-          const a = getAudioVoz();
-          a.pause();
-          a.src = arquivo;
-          a.load();
-          a.play().catch(() => {});
-        } catch(e) {}
+        if (audioCache[arquivo]) {
+          tocarBuffer(audioCache[arquivo]);
+          return;
+        }
+        fetch(arquivo)
+          .then(r => r.arrayBuffer())
+          .then(buf => new Promise((res, rej) => getAudioCtx().decodeAudioData(buf, res, rej)))
+          .then(decoded => { audioCache[arquivo] = decoded; tocarBuffer(decoded); })
+          .catch(() => {});
       }, 900);
     }
 
