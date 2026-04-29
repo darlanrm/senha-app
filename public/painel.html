@@ -364,16 +364,30 @@
       try { getAudioCtx(); } catch(e) {}
     }
 
+    let audioVoz = null;
+
+    function getAudioVoz() {
+      if (!audioVoz) {
+        audioVoz = document.createElement('audio');
+        audioVoz.preload = 'none';
+        document.body.appendChild(audioVoz);
+      }
+      return audioVoz;
+    }
+
     function falar(tipo, numero) {
       if (!somAtivo) return;
       tocarChime();
       const num = String(numero).padStart(3, '0');
       const arquivo = `/audio2/${tipo === 'P' ? 'p' : 'n'}_${num}.m4a`;
       setTimeout(() => {
-        const audio = new Audio(arquivo);
-        audio.addEventListener('ended', () => { if (audio.parentNode) audio.parentNode.removeChild(audio); });
-        document.body.appendChild(audio);
-        audio.play().catch(() => { if (audio.parentNode) audio.parentNode.removeChild(audio); });
+        try {
+          const a = getAudioVoz();
+          a.pause();
+          a.src = arquivo;
+          a.load();
+          a.play().catch(() => {});
+        } catch(e) {}
       }, 900);
     }
 
