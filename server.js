@@ -30,15 +30,16 @@ function lerDados(filial) {
   if (!cache[filial]) {
     const file = dataFile(filial);
     if (!fs.existsSync(file)) {
-      cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0 };
+      cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0, repetir: 0 };
       fs.writeFileSync(file, JSON.stringify(cache[filial]));
     } else {
       cache[filial] = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (cache[filial].repetir === undefined) cache[filial].repetir = 0;
     }
   }
 
   if (cache[filial].data !== hoje()) {
-    cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0 };
+    cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0, repetir: 0 };
     fs.writeFileSync(dataFile(filial), JSON.stringify(cache[filial]));
   }
 
@@ -96,9 +97,18 @@ app.post('/voltar', (req, res) => {
   res.json({ ok: true, dados: d });
 });
 
+app.post('/repetir', (req, res) => {
+  const filial = req.query.filial || 'default';
+  const d = lerDados(filial);
+  if (!d.ultima_geral) return res.json({ ok: false });
+  d.repetir = (d.repetir || 0) + 1;
+  salvarDados(filial, d);
+  res.json({ ok: true, dados: d });
+});
+
 app.post('/resetar', (req, res) => {
   const filial = req.query.filial || 'default';
-  const d = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0 };
+  const d = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0, repetir: 0 };
   salvarDados(filial, d);
   res.json({ ok: true });
 });

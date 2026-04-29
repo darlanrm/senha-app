@@ -162,6 +162,27 @@
     .btn-acao.danger { border-color: var(--danger); color: var(--danger); }
     .btn-acao.danger:hover { background: #fee2e2; }
 
+    .btn-repetir {
+      width: 100%;
+      padding: 16px 20px;
+      border-radius: 12px;
+      border: 2px solid var(--primary-light);
+      background: white;
+      color: var(--primary-light);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-repetir:hover { background: #e8f4fd; }
+    .btn-repetir:disabled { opacity: 0.35; cursor: default; }
+
     /* Última chamada */
     .ultima-chamada {
       background: var(--primary);
@@ -325,6 +346,10 @@
       </button>
     </div>
 
+    <button class="btn-repetir" id="btn-repetir" onclick="repetirUltima()" disabled>
+      🔁 Chamar Novamente
+    </button>
+
     <div class="acoes">
       <div class="acoes-titulo">Correções</div>
       <div class="acoes-grid">
@@ -394,6 +419,7 @@
 
       document.getElementById('prox-p').textContent = 'Próxima: P-' + fmt(d.senha_p + 1);
       document.getElementById('prox-n').textContent = 'Próxima: N-' + fmt(d.senha_n + 1);
+      document.getElementById('btn-repetir').disabled = !d.ultima_geral;
     }
 
     async function chamar(tipo) {
@@ -428,6 +454,17 @@
         }
       } catch (e) {
         mostrarToast('Erro ao desfazer');
+      }
+    }
+
+    async function repetirUltima() {
+      if (!dados.ultima_geral) return;
+      try {
+        const res = await fetch(`/repetir?filial=${filial}`, { method: 'POST' });
+        const json = await res.json();
+        if (json.ok) mostrarToast(`Repetindo ${dados.ultima_geral}...`);
+      } catch (e) {
+        mostrarToast('Erro ao repetir');
       }
     }
 

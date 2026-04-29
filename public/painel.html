@@ -312,6 +312,7 @@
   <script>
     let filial = new URLSearchParams(location.search).get('filial') || localStorage.getItem('filial_painel') || '';
     let ultimaGeral = '';
+    let ultimoRepetir = -1;
     let somAtivo = false;
 
     function confirmarFilial() {
@@ -409,6 +410,7 @@
 
         if (d.ultima_geral && d.ultima_geral !== ultimaGeral) {
           ultimaGeral = d.ultima_geral;
+          ultimoRepetir = d.repetir || 0;
           flash('card-ultima', 'flash-ultima');
 
           if (ultimaGeral.startsWith('P')) {
@@ -418,7 +420,20 @@
             flash('card-n', 'flash');
             falar('N', d.senha_n);
           }
+        } else if (d.ultima_geral && ultimoRepetir !== -1 && (d.repetir || 0) !== ultimoRepetir) {
+          ultimoRepetir = d.repetir;
+          flash('card-ultima', 'flash-ultima');
+
+          if (d.ultima_geral.startsWith('P')) {
+            flash('card-p', 'flash');
+            falar('P', d.senha_p);
+          } else {
+            flash('card-n', 'flash');
+            falar('N', d.senha_n);
+          }
         }
+
+        if (ultimoRepetir === -1) ultimoRepetir = d.repetir || 0;
       } catch (e) {
         console.error('Erro ao buscar dados:', e);
       }
