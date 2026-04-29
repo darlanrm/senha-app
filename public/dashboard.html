@@ -321,8 +321,8 @@
 
         filiais.forEach(f => {
           const d = dados[f];
-          totP   += d.senha_p || 0;
-          totN   += d.senha_n || 0;
+          totP   += d.hoje_p || 0;
+          totN   += d.hoje_n || 0;
           totOrc += d.orcamentos || 0;
         });
 
@@ -345,8 +345,8 @@
 
         const linhas = filiais.map(f => {
           const d = dados[f];
-          const sp = d.senha_p || 0;
-          const sn = d.senha_n || 0;
+          const sp = d.hoje_p || 0;
+          const sn = d.hoje_n || 0;
           const total = sp + sn;
           const orc = d.orcamentos || 0;
           const p = pct(orc, total);

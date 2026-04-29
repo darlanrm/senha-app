@@ -162,6 +162,30 @@
     .btn-acao.danger { border-color: var(--danger); color: var(--danger); }
     .btn-acao.danger:hover { background: #fee2e2; }
 
+    .acoes-reset {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--gray-200);
+    }
+
+    .btn-reset-tipo {
+      flex: 1;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #fca5a5;
+      background: #fff5f5;
+      color: #b91c1c;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+
+    .btn-reset-tipo:hover { background: #fee2e2; }
+
     .btn-repetir {
       width: 100%;
       padding: 16px 20px;
@@ -355,7 +379,10 @@
       <div class="acoes-grid">
         <button class="btn-acao" onclick="voltar('P')">↩ Desfazer Preferencial</button>
         <button class="btn-acao" onclick="voltar('N')">↩ Desfazer Normal</button>
-        <button class="btn-acao danger" onclick="confirmarReset()">⚠ Resetar Dia</button>
+      </div>
+      <div class="acoes-reset">
+        <button class="btn-reset-tipo" onclick="confirmarReset('P')">⚠ Reiniciar Preferencial → P-001</button>
+        <button class="btn-reset-tipo" onclick="confirmarReset('N')">⚠ Reiniciar Normal → N-001</button>
       </div>
     </div>
 
@@ -468,14 +495,22 @@
       }
     }
 
-    async function confirmarReset() {
-      if (!confirm('Resetar contadores do dia? Esta ação não pode ser desfeita.')) return;
+    async function confirmarReset(tipo) {
+      const label = tipo === 'P' ? 'Preferencial' : 'Normal';
+      if (!confirm(`Reiniciar ${label} em P-001? Esta ação não pode ser desfeita.`)) return;
       try {
-        await fetch(`/resetar?filial=${filial}`, { method: 'POST' });
-        atualizarUI({ senha_p: 0, senha_n: 0, ultima_geral: '' });
-        mostrarToast('Contadores resetados');
+        const res = await fetch(`/resetar?filial=${filial}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo })
+        });
+        const json = await res.json();
+        if (json.ok) {
+          atualizarUI(json.dados);
+          mostrarToast(`${label} reiniciada em 001`);
+        }
       } catch (e) {
-        mostrarToast('Erro ao resetar');
+        mostrarToast('Erro ao reiniciar');
       }
     }
 

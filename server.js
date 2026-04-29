@@ -37,13 +37,25 @@ function lerDados(filial) {
       if (cache[filial].repetir === undefined) cache[filial].repetir = 0;
     }
   }
-
-  if (cache[filial].data !== hoje()) {
-    cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0, repetir: 0 };
-    fs.writeFileSync(dataFile(filial), JSON.stringify(cache[filial]));
-  }
-
   return cache[filial];
+}
+
+function contarHoje(filial) {
+  const file = histFile(filial);
+  if (!fs.existsSync(file)) return { hoje_p: 0, hoje_n: 0 };
+  const hojeStr = hoje();
+  let hoje_p = 0, hoje_n = 0;
+  const linhas = fs.readFileSync(file, 'utf8').split('\n');
+  for (const l of linhas) {
+    const parts = l.split(',');
+    if (!parts[0] || parts[0] === 'timestamp') continue;
+    const dataLinha = new Date(parts[0]).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+      .split('/').reverse().join('-');
+    if (dataLinha !== hojeStr) continue;
+    if (parts[1] === 'P') hoje_p++;
+    if (parts[1] === 'N') hoje_n++;
+  }
+  return { hoje_p, hoje_n };
 }
 
 function salvarDados(filial, dados) {
@@ -108,9 +120,25 @@ app.post('/repetir', (req, res) => {
 
 app.post('/resetar', (req, res) => {
   const filial = req.query.filial || 'default';
-  const d = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0, repetir: 0 };
+  const { tipo } = req.body || {};
+  const d = lerDados(filial);
+
+  if (tipo === 'P') {
+    d.senha_p = 0;
+    if (d.ultima_geral.startsWith('P')) d.ultima_geral = '';
+  } else if (tipo === 'N') {
+    d.senha_n = 0;
+    if (d.ultima_geral.startsWith('N')) d.ultima_geral = '';
+  } else {
+    d.senha_p = 0;
+    d.senha_n = 0;
+    d.ultima_geral = '';
+  }
+
+  d.repetir = (d.repetir || 0) + 1;
+  d.data = hoje();
   salvarDados(filial, d);
-  res.json({ ok: true });
+  res.json({ ok: true, dados: d });
 });
 
 app.post('/orcamentos', (req, res) => {
@@ -151,7 +179,9 @@ app.get('/resumo', (req, res) => {
       .filter(f => f.endsWith('.json'))
       .forEach(f => {
         const nome = f.replace('.json', '');
-        resumo[nome] = lerDados(nome);
+        const dados = lerDados(nome);
+        const { hoje_p, hoje_n } = contarHoje(nome);
+        resumo[nome] = { ...dados, hoje_p, hoje_n };
       });
   }
   res.json(resumo);
