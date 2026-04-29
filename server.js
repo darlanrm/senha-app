@@ -107,6 +107,25 @@ function registrarHistorico(filial, tipo, numero) {
   } catch (e) {}
 }
 
+app.get('/status', async (req, res) => {
+  const info = {
+    redis: redis ? 'configurado' : 'não configurado',
+    url: process.env.UPSTASH_REDIS_REST_URL ? 'presente' : 'ausente',
+    token: process.env.UPSTASH_REDIS_REST_TOKEN ? 'presente' : 'ausente',
+    filiais_em_cache: Object.keys(cache),
+    teste_redis: null
+  };
+  if (redis) {
+    try {
+      await redis.set('teste', 'ok');
+      info.teste_redis = await redis.get('teste');
+    } catch (e) {
+      info.teste_redis = 'ERRO: ' + e.message;
+    }
+  }
+  res.json(info);
+});
+
 app.get('/dados', (req, res) => {
   const filial = req.query.filial || 'default';
   res.json(lerDados(filial));
