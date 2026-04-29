@@ -384,7 +384,19 @@
       } catch(e) {}
     }
 
+    function debug(msg) {
+      let el = document.getElementById('dbg');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'dbg';
+        el.style.cssText = 'position:fixed;bottom:50px;left:0;right:0;background:#000;color:lime;font-size:22px;padding:8px;text-align:center;z-index:999';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+    }
+
     function falar(tipo, numero) {
+      debug(`falar(${tipo},${numero}) som=${somAtivo} ctx=${audioCtx ? audioCtx.state : 'null'}`);
       if (!somAtivo) return;
       tocarChime();
       const num = String(numero).padStart(3, '0');
