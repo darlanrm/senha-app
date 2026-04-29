@@ -363,33 +363,15 @@
       try { getAudioCtx(); } catch(e) {}
     }
 
-    function playSequencia(arquivos) {
-      Promise.all(arquivos.map(src => new Promise(resolve => {
-        const a = new Audio(src);
-        a.preload = 'auto';
-        a.oncanplaythrough = () => resolve(a);
-        a.onerror = () => resolve(a);
-        a.load();
-      }))).then(audios => {
-        let i = 0;
-        function proxima() {
-          if (i >= audios.length) return;
-          const audio = audios[i++];
-          audio.onended = proxima;
-          audio.onerror  = proxima;
-          audio.play().catch(proxima);
-        }
-        proxima();
-      });
-    }
-
     function falar(tipo, numero) {
       if (!somAtivo) return;
       tocarChime();
       const num = String(numero).padStart(3, '0');
-      const prefix = tipo === 'P' ? '/audio/preferencial.m4a' : '/audio/normal.m4a';
-      const numFile = `/audio/num_${num}.m4a`;
-      setTimeout(() => playSequencia([prefix, numFile]), 900);
+      const arquivo = `/audio2/${tipo === 'P' ? 'p' : 'n'}_${num}.m4a`;
+      setTimeout(() => {
+        const audio = new Audio(arquivo);
+        audio.play().catch(() => {});
+      }, 900);
     }
 
     function fmt(n) {
