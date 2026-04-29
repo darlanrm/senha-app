@@ -388,7 +388,7 @@
       if (!somAtivo) return;
       tocarChime();
       const num = String(numero).padStart(3, '0');
-      const arquivo = `/audio2/${tipo === 'P' ? 'p' : 'n'}_${num}.m4a`;
+      const arquivo = `/audio2/p_${num}.m4a`; // TESTE: ambos usam p_ para diagnostico
       setTimeout(() => {
         if (audioCache[arquivo]) {
           tocarBuffer(audioCache[arquivo]);
