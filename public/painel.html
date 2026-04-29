@@ -364,16 +364,23 @@
     }
 
     function playSequencia(arquivos) {
-      let i = 0;
-      function proxima() {
-        if (i >= arquivos.length) return;
-        const audio = new Audio(arquivos[i]);
-        audio.onended = proxima;
-        audio.onerror  = proxima;
-        audio.play().catch(proxima);
-        i++;
-      }
-      proxima();
+      Promise.all(arquivos.map(src => new Promise(resolve => {
+        const a = new Audio(src);
+        a.preload = 'auto';
+        a.oncanplaythrough = () => resolve(a);
+        a.onerror = () => resolve(a);
+        a.load();
+      }))).then(audios => {
+        let i = 0;
+        function proxima() {
+          if (i >= audios.length) return;
+          const audio = audios[i++];
+          audio.onended = proxima;
+          audio.onerror  = proxima;
+          audio.play().catch(proxima);
+        }
+        proxima();
+      });
     }
 
     function falar(tipo, numero) {
