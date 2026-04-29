@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { Redis } = require('@upstash/redis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +13,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 const cache = {};
+
+// Redis para persistência entre deploys (opcional — funciona sem se variáveis não configuradas)
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+  : null;
 
 function hoje() {
   return new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
@@ -26,12 +32,36 @@ function histFile(filial) {
   return path.join(DATA_DIR, `${filial}_historico.csv`);
 }
 
+async function carregarRedis() {
+  if (!redis) return;
+  try {
+    const keys = await redis.keys('filial:*');
+    for (const key of keys) {
+      const nome = key.replace('filial:', '');
+      const dados = await redis.get(key);
+      if (dados) {
+        cache[nome] = typeof dados === 'string' ? JSON.parse(dados) : dados;
+        if (cache[nome].repetir === undefined) cache[nome].repetir = 0;
+      }
+    }
+    console.log(`Redis: ${keys.length} filial(is) carregada(s)`);
+  } catch (e) {
+    console.error('Erro ao carregar Redis:', e.message);
+  }
+}
+
+function salvarRedis(filial, dados) {
+  if (!redis) return;
+  redis.set(`filial:${filial}`, JSON.stringify(dados)).catch(e => {
+    console.error('Erro ao salvar Redis:', e.message);
+  });
+}
+
 function lerDados(filial) {
   if (!cache[filial]) {
     const file = dataFile(filial);
     if (!fs.existsSync(file)) {
       cache[filial] = { senha_p: 0, senha_n: 0, ultima_geral: '', data: hoje(), orcamentos: 0, repetir: 0 };
-      fs.writeFileSync(file, JSON.stringify(cache[filial]));
     } else {
       cache[filial] = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (cache[filial].repetir === undefined) cache[filial].repetir = 0;
@@ -60,18 +90,21 @@ function contarHoje(filial) {
 
 function salvarDados(filial, dados) {
   cache[filial] = dados;
-  fs.writeFileSync(dataFile(filial), JSON.stringify(dados));
+  try { fs.writeFileSync(dataFile(filial), JSON.stringify(dados)); } catch (e) {}
+  salvarRedis(filial, dados);
 }
 
 function registrarHistorico(filial, tipo, numero) {
   const file = histFile(filial);
   const agora = new Date().toISOString();
   const linha = `${agora},${tipo},${numero}\n`;
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, 'timestamp,tipo,numero\n' + linha);
-  } else {
-    fs.appendFileSync(file, linha);
-  }
+  try {
+    if (!fs.existsSync(file)) {
+      fs.writeFileSync(file, 'timestamp,tipo,numero\n' + linha);
+    } else {
+      fs.appendFileSync(file, linha);
+    }
+  } catch (e) {}
 }
 
 app.get('/dados', (req, res) => {
@@ -174,26 +207,34 @@ app.get('/historico', (req, res) => {
 
 app.get('/resumo', (req, res) => {
   const resumo = {};
-  if (fs.existsSync(DATA_DIR)) {
+  const filiais = new Set();
+
+  // filiais em memória
+  Object.keys(cache).forEach(f => filiais.add(f));
+
+  // filiais em arquivo (quando existir)
+  try {
     fs.readdirSync(DATA_DIR)
       .filter(f => f.endsWith('.json'))
-      .forEach(f => {
-        const nome = f.replace('.json', '');
-        const dados = lerDados(nome);
-        const { hoje_p, hoje_n } = contarHoje(nome);
-        resumo[nome] = { ...dados, hoje_p, hoje_n };
-      });
-  }
+      .forEach(f => filiais.add(f.replace('.json', '')));
+  } catch (e) {}
+
+  filiais.forEach(nome => {
+    const dados = lerDados(nome);
+    const { hoje_p, hoje_n } = contarHoje(nome);
+    resumo[nome] = { ...dados, hoje_p, hoje_n };
+  });
+
   res.json(resumo);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('='.repeat(50));
-  console.log('  Chamador de Senhas - Santa Apolônia');
-  console.log('='.repeat(50));
-  console.log(`  Servidor:  http://localhost:${PORT}`);
-  console.log(`  Painel TV: http://localhost:${PORT}/painel.html?filial=loja01`);
-  console.log(`  Operador:  http://localhost:${PORT}/operador.html?filial=loja01`);
-  console.log(`  Dashboard: http://localhost:${PORT}/dashboard.html`);
-  console.log('='.repeat(50));
+carregarRedis().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('='.repeat(50));
+    console.log('  Chamador de Senhas - Santa Apolônia');
+    console.log('='.repeat(50));
+    console.log(`  Servidor:  http://localhost:${PORT}`);
+    console.log(`  Redis:     ${redis ? 'conectado' : 'não configurado (só memória)'}`);
+    console.log('='.repeat(50));
+  });
 });
