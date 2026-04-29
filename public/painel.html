@@ -311,7 +311,7 @@
 
   <script>
     let filial = new URLSearchParams(location.search).get('filial') || localStorage.getItem('filial_painel') || '';
-    let ultimaGeral = '';
+    let ultimaGeral = null; // null = primeira carga, não toca
     let ultimoRepetir = -1;
     let somAtivo = false;
 
@@ -371,7 +371,9 @@
       const arquivo = `/audio2/${tipo === 'P' ? 'p' : 'n'}_${num}.m4a`;
       setTimeout(() => {
         const audio = new Audio(arquivo);
-        audio.play().catch(() => {});
+        audio.addEventListener('ended', () => { if (audio.parentNode) audio.parentNode.removeChild(audio); });
+        document.body.appendChild(audio);
+        audio.play().catch(() => { if (audio.parentNode) audio.parentNode.removeChild(audio); });
       }, 900);
     }
 
@@ -408,7 +410,11 @@
         elU.textContent = d.ultima_geral || '---';
         elU.classList.toggle('vazio', !d.ultima_geral);
 
-        if (d.ultima_geral && d.ultima_geral !== ultimaGeral) {
+        if (ultimaGeral === null) {
+          // primeira carga: apenas sincroniza estado, sem tocar nada
+          ultimaGeral = d.ultima_geral || '';
+          ultimoRepetir = d.repetir || 0;
+        } else if (d.ultima_geral && d.ultima_geral !== ultimaGeral) {
           ultimaGeral = d.ultima_geral;
           ultimoRepetir = d.repetir || 0;
           flash('card-ultima', 'flash-ultima');
@@ -420,8 +426,8 @@
             flash('card-n', 'flash');
             falar('N', d.senha_n);
           }
-        } else if (d.ultima_geral && ultimoRepetir !== -1 && (d.repetir || 0) !== ultimoRepetir) {
-          ultimoRepetir = d.repetir;
+        } else if (d.ultima_geral && (d.repetir || 0) !== ultimoRepetir) {
+          ultimoRepetir = d.repetir || 0;
           flash('card-ultima', 'flash-ultima');
 
           if (d.ultima_geral.startsWith('P')) {
@@ -432,8 +438,6 @@
             falar('N', d.senha_n);
           }
         }
-
-        if (ultimoRepetir === -1) ultimoRepetir = d.repetir || 0;
       } catch (e) {
         console.error('Erro ao buscar dados:', e);
       }
