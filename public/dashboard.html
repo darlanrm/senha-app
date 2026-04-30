@@ -274,8 +274,16 @@
 
     <!-- Tabela por filial -->
     <div class="card">
-      <div class="card-titulo">Por Filial</div>
+      <div class="card-titulo">Por Filial — Hoje</div>
       <div id="tabela-container">
+        <div class="vazio-msg">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- Histórico diário -->
+    <div class="card">
+      <div class="card-titulo">Histórico Diário — Todas as Filiais</div>
+      <div id="historico-container">
         <div class="vazio-msg">Carregando...</div>
       </div>
     </div>
@@ -390,8 +398,49 @@
       }
     }
 
+    async function carregarHistorico() {
+      try {
+        const res = await fetch('/historico-diario?dias=30');
+        const dados = await res.json();
+
+        if (!dados.length) {
+          document.getElementById('historico-container').innerHTML =
+            '<div class="vazio-msg">Nenhum dado histórico ainda. Os registros começam a partir de hoje.</div>';
+          return;
+        }
+
+        const linhas = dados.map(d => {
+          const dataFmt = new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+          return `
+            <tr>
+              <td><strong>${dataFmt}</strong></td>
+              <td class="center"><span class="badge badge-p">${d.p}</span></td>
+              <td class="center"><span class="badge badge-n">${d.n}</span></td>
+              <td class="center"><strong>${d.total}</strong></td>
+            </tr>`;
+        }).join('');
+
+        document.getElementById('historico-container').innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th class="center">Preferencial</th>
+                <th class="center">Normal</th>
+                <th class="center">Total</th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>`;
+      } catch (e) {
+        console.error('Erro ao carregar histórico:', e);
+      }
+    }
+
     carregar();
+    carregarHistorico();
     setInterval(carregar, 30000);
+    setInterval(carregarHistorico, 60000);
   </script>
 </body>
 </html>

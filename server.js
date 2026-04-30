@@ -149,6 +149,7 @@ app.post('/chamar', (req, res) => {
 
   salvarDados(filial, d);
   registrarHistorico(filial, tipo, tipo === 'P' ? d.senha_p : d.senha_n);
+  if (redis) redis.hincrby(`dia:${filial}:${hoje()}`, tipo, 1).catch(() => {});
   res.json({ ok: true, dados: d });
 });
 
@@ -225,6 +226,33 @@ app.get('/historico', (req, res) => {
     });
 
   res.json(linhas);
+});
+
+app.get('/historico-diario', async (req, res) => {
+  if (!redis) return res.json([]);
+  const dias = parseInt(req.query.dias) || 30;
+  const resultado = [];
+
+  for (let i = 0; i < dias; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const data = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+      .split('/').reverse().join('-');
+
+    const keys = await redis.keys(`dia:*:${data}`).catch(() => []);
+    if (keys.length === 0) continue;
+
+    let totP = 0, totN = 0;
+    for (const key of keys) {
+      const vals = await redis.hgetall(key).catch(() => ({}));
+      totP += parseInt(vals?.P || 0);
+      totN += parseInt(vals?.N || 0);
+    }
+
+    resultado.push({ data, p: totP, n: totN, total: totP + totN });
+  }
+
+  res.json(resultado);
 });
 
 app.get('/resumo', (req, res) => {
