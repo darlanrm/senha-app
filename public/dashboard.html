@@ -288,6 +288,44 @@
       </div>
     </div>
 
+    <!-- Timeline de chamadas de hoje -->
+    <div class="card">
+      <div class="card-titulo" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Timeline de Chamadas — Hoje</span>
+        <select id="sel-filial" onchange="carregarTimeline()" style="
+          padding:6px 12px;border-radius:8px;border:1px solid var(--gray-200);
+          font-size:13px;font-weight:600;font-family:inherit;color:var(--gray-700);
+          background:white;cursor:pointer;">
+          <option value="">Selecione a filial...</option>
+        </select>
+      </div>
+
+      <div id="timeline-stats" style="display:none;margin-bottom:16px;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div class="total-item" style="flex:1;min-width:120px;">
+            <div class="valor" id="tl-media" style="font-size:24px;color:var(--primary);">—</div>
+            <div class="label">Intervalo médio</div>
+          </div>
+          <div class="total-item" style="flex:1;min-width:120px;">
+            <div class="valor" id="tl-min" style="font-size:24px;color:var(--success);">—</div>
+            <div class="label">Menor intervalo</div>
+          </div>
+          <div class="total-item" style="flex:1;min-width:120px;">
+            <div class="valor" id="tl-max" style="font-size:24px;color:var(--danger);">—</div>
+            <div class="label">Maior intervalo</div>
+          </div>
+          <div class="total-item" style="flex:1;min-width:120px;">
+            <div class="valor" id="tl-total" style="font-size:24px;color:var(--primary-light);">—</div>
+            <div class="label">Total hoje</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="timeline-container">
+        <div class="vazio-msg">Selecione uma filial acima para ver a linha do tempo.</div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -437,10 +475,136 @@
       }
     }
 
-    carregar();
+    function fmtIntervalo(segundos) {
+      if (segundos < 60) return segundos + 's';
+      const m = Math.floor(segundos / 60);
+      const s = segundos % 60;
+      return s > 0 ? `${m}m ${s}s` : `${m}m`;
+    }
+
+    function popularSeletorFiliais(filiais) {
+      const sel = document.getElementById('sel-filial');
+      const atual = sel.value;
+      sel.innerHTML = '<option value="">Selecione a filial...</option>';
+      filiais.sort().forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = f.toUpperCase();
+        if (f === atual) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function carregarTimeline() {
+      const filial = document.getElementById('sel-filial').value;
+      const container = document.getElementById('timeline-container');
+      const stats = document.getElementById('timeline-stats');
+
+      if (!filial) {
+        container.innerHTML = '<div class="vazio-msg">Selecione uma filial acima para ver a linha do tempo.</div>';
+        stats.style.display = 'none';
+        return;
+      }
+
+      container.innerHTML = '<div class="vazio-msg">Carregando...</div>';
+
+      try {
+        const res = await fetch(`/historico?filial=${filial}`);
+        const dados = await res.json();
+
+        if (!dados.length) {
+          container.innerHTML = '<div class="vazio-msg">Nenhuma chamada registrada hoje para esta filial.</div>';
+          stats.style.display = 'none';
+          return;
+        }
+
+        // Ordenar por timestamp crescente
+        dados.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+
+        // Calcular intervalos
+        const intervalos = [];
+        const linhas = dados.map((item, i) => {
+          const hora = new Date(item.ts).toLocaleTimeString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+          });
+          const tipo = item.tipo === 'P' ? 'Preferencial' : 'Normal';
+          const senha = item.tipo + String(item.numero).padStart(3, '0');
+          const badgeClass = item.tipo === 'P' ? 'badge-p' : 'badge-n';
+
+          let intervaloTxt = '—';
+          if (i > 0) {
+            const diff = Math.round((new Date(item.ts) - new Date(dados[i - 1].ts)) / 1000);
+            intervalos.push(diff);
+            intervaloTxt = `<span style="color:var(--gray-500);font-size:13px;">+${fmtIntervalo(diff)}</span>`;
+          }
+
+          return `
+            <tr>
+              <td style="font-variant-numeric:tabular-nums;font-weight:600;">${hora}</td>
+              <td class="center"><span class="badge ${badgeClass}">${tipo}</span></td>
+              <td class="center" style="font-weight:700;font-size:15px;">${senha}</td>
+              <td class="center">${intervaloTxt}</td>
+            </tr>`;
+        });
+
+        // Mostrar mais recentes primeiro
+        linhas.reverse();
+
+        container.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Horário</th>
+                <th class="center">Tipo</th>
+                <th class="center">Senha</th>
+                <th class="center">Intervalo</th>
+              </tr>
+            </thead>
+            <tbody>${linhas.join('')}</tbody>
+          </table>`;
+
+        // Estatísticas
+        if (intervalos.length > 0) {
+          const media = Math.round(intervalos.reduce((a, b) => a + b, 0) / intervalos.length);
+          const minInt = Math.min(...intervalos);
+          const maxInt = Math.max(...intervalos);
+          document.getElementById('tl-media').textContent = fmtIntervalo(media);
+          document.getElementById('tl-min').textContent   = fmtIntervalo(minInt);
+          document.getElementById('tl-max').textContent   = fmtIntervalo(maxInt);
+        } else {
+          document.getElementById('tl-media').textContent = '—';
+          document.getElementById('tl-min').textContent   = '—';
+          document.getElementById('tl-max').textContent   = '—';
+        }
+        document.getElementById('tl-total').textContent = dados.length;
+        stats.style.display = 'block';
+
+      } catch (e) {
+        console.error('Erro ao carregar timeline:', e);
+        container.innerHTML = '<div class="vazio-msg">Erro ao carregar dados.</div>';
+      }
+    }
+
+    async function carregarComFiliais() {
+      await carregar();
+      // Popula o seletor com as filiais conhecidas
+      const res = await fetch('/resumo').catch(() => null);
+      if (res) {
+        const dados = await res.json();
+        popularSeletorFiliais(Object.keys(dados));
+        // Se já havia uma filial selecionada, recarrega a timeline
+        if (document.getElementById('sel-filial').value) carregarTimeline();
+      }
+    }
+
+    carregarComFiliais();
     carregarHistorico();
-    setInterval(carregar, 30000);
+    setInterval(carregarComFiliais, 30000);
     setInterval(carregarHistorico, 60000);
+    setInterval(() => {
+      if (document.getElementById('sel-filial').value) carregarTimeline();
+    }, 15000);
   </script>
 </body>
 </html>
