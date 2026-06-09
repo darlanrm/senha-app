@@ -290,14 +290,20 @@
 
     <!-- Timeline de chamadas de hoje -->
     <div class="card">
-      <div class="card-titulo" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>Timeline de Chamadas — Hoje</span>
-        <select id="sel-filial" onchange="carregarTimeline()" style="
-          padding:6px 12px;border-radius:8px;border:1px solid var(--gray-200);
-          font-size:13px;font-weight:600;font-family:inherit;color:var(--gray-700);
-          background:white;cursor:pointer;">
-          <option value="">Selecione a filial...</option>
-        </select>
+      <div class="card-titulo" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <span id="tl-titulo">Timeline de Chamadas — Hoje</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="sel-data" onchange="carregarTimeline()" style="
+            padding:6px 10px;border-radius:8px;border:1px solid var(--gray-200);
+            font-size:13px;font-weight:600;font-family:inherit;color:var(--gray-700);
+            background:white;cursor:pointer;">
+          <select id="sel-filial" onchange="carregarTimeline()" style="
+            padding:6px 12px;border-radius:8px;border:1px solid var(--gray-200);
+            font-size:13px;font-weight:600;font-family:inherit;color:var(--gray-700);
+            background:white;cursor:pointer;">
+            <option value="">Selecione a filial...</option>
+          </select>
+        </div>
       </div>
 
       <div id="timeline-stats" style="display:none;margin-bottom:16px;">
@@ -495,10 +501,23 @@
       });
     }
 
+    function hojeISO() {
+      const d = new Date();
+      return d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    }
+
     async function carregarTimeline() {
       const filial = document.getElementById('sel-filial').value;
+      const dataSel = document.getElementById('sel-data').value || hojeISO();
       const container = document.getElementById('timeline-container');
       const stats = document.getElementById('timeline-stats');
+
+      // Atualiza título
+      const isHoje = dataSel === hojeISO();
+      const dataFmt = new Date(dataSel + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      document.getElementById('tl-titulo').textContent = isHoje
+        ? 'Timeline de Chamadas — Hoje'
+        : `Timeline de Chamadas — ${dataFmt}`;
 
       if (!filial) {
         container.innerHTML = '<div class="vazio-msg">Selecione uma filial acima para ver a linha do tempo.</div>';
@@ -509,7 +528,7 @@
       container.innerHTML = '<div class="vazio-msg">Carregando...</div>';
 
       try {
-        const res = await fetch(`/historico?filial=${filial}`);
+        const res = await fetch(`/historico?filial=${filial}&data=${dataSel}`);
         const dados = await res.json();
 
         if (!dados.length) {
@@ -598,12 +617,19 @@
       }
     }
 
+    // Inicializa date picker com hoje
+    document.getElementById('sel-data').value = hojeISO();
+    document.getElementById('sel-data').max   = hojeISO();
+
     carregarComFiliais();
     carregarHistorico();
     setInterval(carregarComFiliais, 30000);
     setInterval(carregarHistorico, 60000);
     setInterval(() => {
-      if (document.getElementById('sel-filial').value) carregarTimeline();
+      // Só auto-refresh na timeline se estiver no dia de hoje
+      const sel = document.getElementById('sel-filial').value;
+      const data = document.getElementById('sel-data').value;
+      if (sel && data === hojeISO()) carregarTimeline();
     }, 15000);
   </script>
 </body>

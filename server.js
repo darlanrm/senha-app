@@ -110,6 +110,15 @@ function registrarHistorico(filial, tipo, numero) {
   } catch (e) {}
 }
 
+function registrarEventoRedis(filial, tipo, numero) {
+  if (!redis) return;
+  const data = hoje();
+  const key = `eventos:${filial}:${data}`;
+  const evento = JSON.stringify({ ts: new Date().toISOString(), tipo, numero });
+  redis.lpush(key, evento).catch(e => console.error('Erro ao salvar evento Redis:', e.message));
+  redis.expire(key, 7776000).catch(() => {}); // 90 dias
+}
+
 app.get('/status', async (req, res) => {
   const info = {
     redis: redis ? 'configurado' : 'não configurado',
@@ -147,8 +156,10 @@ app.post('/chamar', (req, res) => {
     d.ultima_geral = 'N' + String(d.senha_n).padStart(3, '0');
   }
 
+  const numero = tipo === 'P' ? d.senha_p : d.senha_n;
   salvarDados(filial, d);
-  registrarHistorico(filial, tipo, tipo === 'P' ? d.senha_p : d.senha_n);
+  registrarHistorico(filial, tipo, numero);
+  registrarEventoRedis(filial, tipo, numero);
   if (redis) redis.hincrby(`dia:${filial}:${hoje()}`, tipo, 1).catch(() => {});
   res.json({ ok: true, dados: d });
 });
@@ -206,19 +217,38 @@ app.post('/orcamentos', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/historico', (req, res) => {
+app.get('/historico', async (req, res) => {
   const filial = req.query.filial || 'default';
+  const dataStr = req.query.data || hoje();
+
+  // Tenta Redis primeiro
+  if (redis) {
+    try {
+      const key = `eventos:${filial}:${dataStr}`;
+      const items = await redis.lrange(key, 0, -1);
+      if (items && items.length > 0) {
+        const resultado = items.map(item => {
+          const obj = typeof item === 'string' ? JSON.parse(item) : item;
+          return { ts: obj.ts, tipo: obj.tipo, numero: parseInt(obj.numero) };
+        });
+        return res.json(resultado);
+      }
+    } catch (e) {
+      console.error('Erro ao ler eventos Redis:', e.message);
+    }
+  }
+
+  // Fallback para CSV (dados anteriores à migração)
   const file = histFile(filial);
   if (!fs.existsSync(file)) return res.json([]);
 
-  const hojeStr = hoje();
   const linhas = fs.readFileSync(file, 'utf8').split('\n')
     .filter(l => {
       const ts = l.split(',')[0];
       if (!ts || ts === 'timestamp') return false;
       const dataLinha = new Date(ts).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
         .split('/').reverse().join('-');
-      return dataLinha === hojeStr;
+      return dataLinha === dataStr;
     })
     .map(l => {
       const parts = l.split(',');
