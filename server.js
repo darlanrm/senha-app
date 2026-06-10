@@ -208,6 +208,36 @@ app.post('/resetar', (req, res) => {
   res.json({ ok: true, dados: d });
 });
 
+app.post('/restaurar-reset', async (req, res) => {
+  const filial = req.query.filial || 'default';
+  const { tipo } = req.body || {};
+  if (!tipo || !redis) return res.json({ ok: false, erro: 'tipo obrigatório e Redis necessário' });
+
+  try {
+    const key = `eventos:${filial}:${hoje()}`;
+    const items = await redis.lrange(key, 0, -1);
+    if (!items || items.length === 0) return res.json({ ok: false, erro: 'Sem eventos hoje no Redis' });
+
+    const eventos = items.map(i => typeof i === 'string' ? JSON.parse(i) : i);
+    const doTipo = eventos.filter(e => e.tipo === tipo);
+    if (doTipo.length === 0) return res.json({ ok: false, erro: `Nenhum evento ${tipo} encontrado hoje` });
+
+    const ultimo = Math.max(...doTipo.map(e => parseInt(e.numero)));
+    const d = lerDados(filial);
+    if (tipo === 'P') {
+      d.senha_p = ultimo;
+      d.ultima_geral = 'P' + String(ultimo).padStart(3, '0');
+    } else {
+      d.senha_n = ultimo;
+      d.ultima_geral = 'N' + String(ultimo).padStart(3, '0');
+    }
+    salvarDados(filial, d);
+    res.json({ ok: true, restaurado: ultimo, dados: d });
+  } catch (e) {
+    res.json({ ok: false, erro: e.message });
+  }
+});
+
 app.post('/orcamentos', (req, res) => {
   const filial = req.query.filial || 'default';
   const { quantidade } = req.body;
