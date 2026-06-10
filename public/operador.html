@@ -314,6 +314,44 @@
     }
 
     .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Modal de confirmação de reset */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: white;
+      border-radius: 16px;
+      padding: 28px 24px 20px;
+      max-width: 340px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-icone { font-size: 40px; margin-bottom: 12px; }
+    .modal-titulo { font-size: 18px; font-weight: 700; color: var(--gray-900); margin-bottom: 8px; }
+    .modal-desc { font-size: 14px; color: var(--gray-500); margin-bottom: 6px; }
+    .modal-numero { font-size: 28px; font-weight: 800; margin: 10px 0 18px; }
+    .modal-numero.verde { color: var(--normal); }
+    .modal-numero.vermelho { color: var(--preferencial); }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btn-cancelar {
+      flex: 1; padding: 12px; border-radius: 10px; border: 2px solid var(--gray-200);
+      background: white; font-size: 15px; font-weight: 600; cursor: pointer; color: var(--gray-700);
+    }
+    .modal-btn-cancelar:hover { background: var(--gray-100); }
+    .modal-btn-confirmar {
+      flex: 1; padding: 12px; border-radius: 10px; border: none;
+      background: #dc2626; color: white; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .modal-btn-confirmar:hover { background: #b91c1c; }
   </style>
 </head>
 <body>
@@ -395,6 +433,21 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay" id="modal-reset">
+    <div class="modal-box">
+      <div class="modal-icone">⚠️</div>
+      <div class="modal-titulo" id="modal-titulo">Reiniciar contador?</div>
+      <div class="modal-desc">O último número chamado foi</div>
+      <div class="modal-numero" id="modal-numero"></div>
+      <div class="modal-desc">Ao confirmar, o contador voltará para <strong>001</strong>.</div>
+      <div style="margin-top:16px; margin-bottom:4px; font-size:13px; color:#ef4444; font-weight:600;">Esta ação não pode ser desfeita.</div>
+      <div class="modal-btns" style="margin-top:14px;">
+        <button class="modal-btn-cancelar" onclick="fecharModal()">Cancelar</button>
+        <button class="modal-btn-confirmar" id="modal-btn-confirmar" onclick="executarReset()">Sim, reiniciar</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     let filial = new URLSearchParams(location.search).get('filial') || localStorage.getItem('filial_op') || '';
@@ -495,9 +548,31 @@
       }
     }
 
-    async function confirmarReset(tipo) {
+    let _resetTipo = null;
+
+    function confirmarReset(tipo) {
+      _resetTipo = tipo;
       const label = tipo === 'P' ? 'Preferencial' : 'Normal';
-      if (!confirm(`Reiniciar ${label} em P-001? Esta ação não pode ser desfeita.`)) return;
+      const contador = tipo === 'P' ? dados.senha_p : dados.senha_n;
+      const prefixo = tipo === 'P' ? 'P' : 'N';
+      const cor = tipo === 'P' ? 'vermelho' : 'verde';
+      document.getElementById('modal-titulo').textContent = `Reiniciar ${label}?`;
+      const el = document.getElementById('modal-numero');
+      el.textContent = prefixo + String(contador).padStart(3, '0');
+      el.className = 'modal-numero ' + cor;
+      document.getElementById('modal-reset').classList.add('active');
+    }
+
+    function fecharModal() {
+      document.getElementById('modal-reset').classList.remove('active');
+      _resetTipo = null;
+    }
+
+    async function executarReset() {
+      if (!_resetTipo) return;
+      const tipo = _resetTipo;
+      const label = tipo === 'P' ? 'Preferencial' : 'Normal';
+      fecharModal();
       try {
         const res = await fetch(`/resetar?filial=${filial}`, {
           method: 'POST',
